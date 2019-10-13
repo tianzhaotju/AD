@@ -1,0 +1,64 @@
+
+import numpy as np
+import keras
+from keras.datasets import mnist
+from keras.utils import np_utils
+from keras.models import Sequential
+from keras.layers import Dense, Activation, Conv2D, MaxPooling2D, Flatten
+from keras.optimizers import SGD
+import os
+import matplotlib.pyplot as plt
+ 
+os.environ['CUDA_VISIBLE_DEVICES']='0' #使用GPU
+ 
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+X_train = X_train / 255 #归一化
+X_test = X_test / 255
+y_train = np_utils.to_categorical(y_train, num_classes=10) #label onehot化
+y_test = np_utils.to_categorical(y_test, num_classes=10)
+ 
+def lenet():
+    model = Sequential()
+    #第一层卷积
+    model.add(Conv2D(input_shape=(28, 28, 1), kernel_size=(5, 5), filters=20, activation='relu')) #filters为输出通道数
+    model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='same'))
+    #第二层卷积
+    model.add(Conv2D(kernel_size=(5, 5), filters=50,  activation='relu', padding='same'))
+    model.add(MaxPooling2D(pool_size=(2,2), strides=2, padding='same'))
+ 
+    model.add(Flatten()) #进入全连接层fc之前，要展成一维数组
+    model.add(Dense(500, activation='relu')) #全连接层fc1
+    model.add(Dense(10, activation='softmax')) #全连接层fc2
+    sgd = SGD(lr=0.01,decay=1e-6,momentum=0.9,nesterov=True) #确定优化器
+    model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy']) #模型编译
+    return model #最后返回模型
+ 
+if __name__ == '__main__':
+    model = lenet() #加载lenet模型
+    print('Training')
+    history = model.fit(X_train, y_train, epochs=30, batch_size=32,validation_split=0.2) #训练模型
+    # validation_split=0.2表示，每五个训练集中拿一个出来当验证集
+ 
+    print('\nTesting')
+    text_loss, text_accuracy = model.evaluate(X_test, y_test) #测试模型
+ 
+    print('\ntest loss: ', text_loss)
+    print('\ntest accuracy: ', text_accuracy)
+ 
+    #keras画图
+    acc = history.history['acc']
+    val_acc = history.history['val_acc']
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    epochs = range(1,len(acc)+1)
+ 
+    plt.plot(epochs,acc,'bo',label='trainning acc')
+    plt.plot(epochs,loss,'b',label='training loss')
+    plt.plot(epochs,val_acc,'ro',label='val_acc')
+    plt.plot(epochs,val_loss,'r',label='val_loss')
+ 
+    plt.legend()
+    plt.show()
+    model.save('lenet.h5')  #保存模型
